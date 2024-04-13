@@ -29,7 +29,7 @@ def create_arm():
 
     frame_name = "imu_arm"
     imu_arm_placement = pin.SE3.Identity()
-    imu_arm_placement.rotation = pin.utils.rpyToMatrix(np.pi/2.0,0,0) @ pin.utils.rpyToMatrix(0,-np.pi/2.0,0)
+    imu_arm_placement.rotation = pin.utils.rpyToMatrix(0,-np.pi/2.0,0) @ pin.utils.rpyToMatrix(-np.pi,0,0)
     imu_arm_placement.translation[2] = -upper_arm_length/2.0
     imu_arm_frame = pin.Frame(frame_name, Base_id, parent_id, imu_arm_placement, pin.OP_FRAME)
     rmodel.addFrame(imu_arm_frame)
@@ -46,7 +46,7 @@ def create_arm():
 
     frame_name = "Hand"
     hand_placement = pin.SE3.Identity()
-    hand_placement.rotation = pin.utils.rpyToMatrix(0,-np.pi/2.0,-np.pi/2.0)
+    hand_placement.rotation = pin.utils.rpyToMatrix(np.pi/2.0,-np.pi/2.0,0.0)
     hand_placement.translation[2] = -lower_arm_length/2.0
     hand_frame = pin.Frame(frame_name, lar_id, lar_id, hand_placement, pin.OP_FRAME)
     hand_id = rmodel.addFrame(hand_frame)
