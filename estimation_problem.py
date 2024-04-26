@@ -44,7 +44,7 @@ def solve_estimation_problem(measurements, T, rmodel, x0):
         # Add costs
         runningCostModel.addCost("stateReg", xRegCost, 5e-3)
         runningCostModel.addCost("ctrlRegGrav", uRegCost, 1e-3)
-        runningCostModel.addCost("wristOrientation", frameOrientationCost, 5e1)
+        runningCostModel.addCost("wristOrientation", frameOrientationCost, 5e-10)
         runningCostModel.addCost("shoulderOrientation", imuArmOrientationCost, 5e1)
         
     

@@ -10,12 +10,15 @@ class ArmMeasurementCurrent:
     arm_orientation : np.array
     palm_orientation : np.array
     imu_to_world = pin.utils.rpyToMatrix(0, -np.pi/2.0, 0)
+    tmp1 = pin.utils.rpyToMatrix(np.pi/2.0, -np.pi/2.0, 0)
 
-    def __init__(self, state, wrist_orientation):
+
+    def __init__(self, state):
+        print(state["base_ori"],state["shoulder_ori"], state["wrist_ori"])
         base = Rotation.from_quat(np.squeeze(state["base_ori"])).as_matrix()
         shoulder = Rotation.from_quat(np.squeeze(state["shoulder_ori"])).as_matrix()
-        wrist = Rotation.from_quat(wrist_orientation).as_matrix()
-        self.arm_orientation = self.imu_to_world@base.T@shoulder
+        wrist = Rotation.from_quat(np.squeeze(state["wrist_ori"])).as_matrix()
+        self.arm_orientation = self.tmp1@base.T@shoulder
         self.palm_orientation = self.imu_to_world@base.T@wrist
 
 def add_frame(name, vis):
@@ -46,36 +49,3 @@ def update_frame(name, vis, R, offset = np.zeros(3)):
     vis["xbox_" + name].set_transform( offset_TG @ T @ X_TG )
     vis["ybox_" + name].set_transform( offset_TG @ T @ Y_TG )
     vis["zbox_" + name].set_transform( offset_TG @ T @ Z_TG )
-
-
-## This is the python interface to read IMU data from the BNU005 IMU. 
-
-import serial
-from threading import Thread
-import struct
-
-class BnoImu:
-    def __init__(self, port = '/dev/ttyACM0'):
-        self.port = port
-        self.serial = serial.Serial(port, baudrate=115200, timeout=1)
-        self.running = True
-        self.state = None
-        self.thread = Thread(target=self.update)
-        self.thread.start()
-
-    def update(self):
-        while self.running:
-            data = self.serial.read_until(b'abc\n')
-            data = struct.unpack('16f',data[:-4])
-            self.state = {'q':data[0:4],
-                          'acce':data[4:7],
-                          'gyro':data[7:10],
-                          'mag':data[10:13],
-                          'gravity':data[13:16]}
-            
-    def read(self):
-        return self.state
-    
-    def close(self):
-        self.running=False
-        self.serial.close()
