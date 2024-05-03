@@ -10,7 +10,7 @@ def create_arm():
 
     # My Desired
     parent_id = 0
-    arm_mass = 5.0
+    arm_mass = 2.0
     upper_arm_radius = 2e-2
     upper_arm_length = 0.25
     lower_arm_radius = 1e-2

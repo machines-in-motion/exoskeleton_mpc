@@ -48,9 +48,9 @@ def solve_reaching_problem(x_des, q0, rmodel):
     # Add costs
     runningCostModel.addCost("stateReg", xRegCost, 1e-1)
     runningCostModel.addCost("ctrlRegGrav", uRegCost, 1e-3)
-    runningCostModel.addCost("translation", frameTranslationCost, 10)
+    runningCostModel.addCost("translation", frameTranslationCost, 0.5)
     terminalCostModel.addCost("stateReg", xRegCost, 1e-1)
-    terminalCostModel.addCost("translation", frameTranslationCost, 1e2)
+    terminalCostModel.addCost("translation", frameTranslationCost, 1e1)
     
     # Create Differential Action Model (DAM), i.e. continuous dynamics and cost functions
     running_DAM = crocoddyl.DifferentialActionModelFreeFwdDynamics(state, actuation, runningCostModel)

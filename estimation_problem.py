@@ -1,5 +1,5 @@
 import crocoddyl
-# from mim_solvers import SolverSQP
+from mim_solvers import SolverSQP
 import numpy as np
 
 def solve_estimation_problem(measurements, T, rmodel, x0):
@@ -41,10 +41,10 @@ def solve_estimation_problem(measurements, T, rmodel, x0):
         terminalCostModel = crocoddyl.CostModelSum(state)
         
         # Add costs
-        runningCostModel.addCost("stateReg", xRegCost, 5e-1)
-        runningCostModel.addCost("ctrlRegGrav", uRegCost, 1e-3)
-        # runningCostModel.addCost("wristOrientation", frameOrientationCost, 1e1)
-        # runningCostModel.addCost("shoulderOrientation", imuArmOrientationCost, 1e1)
+        runningCostModel.addCost("stateReg", xRegCost, 5e-3)
+        runningCostModel.addCost("ctrlRegGrav", uRegCost, 5e-3)
+        runningCostModel.addCost("shoulderOrientation", imuArmOrientationCost, 5e2)
+        runningCostModel.addCost("wristOrientation", frameOrientationCost, 6e2)
         
     
         # Create Differential Action Model (DAM), i.e. continuous dynamics and cost functions
@@ -61,8 +61,8 @@ def solve_estimation_problem(measurements, T, rmodel, x0):
     problem = crocoddyl.ShootingProblem(x0, runningModel, terminalModel)
     
     # Create solver + callbacks
-    # ddp = SolverSQP(problem)
-    ddp = crocoddyl.SolverDDP(problem)
+    ddp = SolverSQP(problem)
+    # ddp = crocoddyl.SolverDDP(problem)
     ddp.setCallbacks([crocoddyl.CallbackLogger()])
     ddp.use_filter_line_search = True
     
