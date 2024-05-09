@@ -75,6 +75,6 @@ def solve_reaching_problem(x_des, q0, rmodel):
     us_init = ddp.problem.quasiStatic(xs_init[:-1])
     
     # Solve
-    ddp.solve(xs_init, us_init, maxiter=10)
+    ddp.solve(xs_init, us_init, maxiter=5)
     
     return ddp
