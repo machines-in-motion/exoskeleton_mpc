@@ -49,3 +49,33 @@ def update_frame(name, vis, R, offset = np.zeros(3)):
     vis["xbox_" + name].set_transform( offset_TG @ T @ X_TG )
     vis["ybox_" + name].set_transform( offset_TG @ T @ Y_TG )
     vis["zbox_" + name].set_transform( offset_TG @ T @ Z_TG )
+
+
+
+
+def visualize_estimate(child, viz):
+    viewer = meshcat.Visualizer(zmq_url = "tcp://127.0.0.1:6014")
+    viz.initViewer(viewer)
+    viz.loadViewerModel()
+    viz.initializeFrames()
+    viz.display_frames = True
+    add_frame("hand", viz.viewer)
+    add_frame("shoulder", viz.viewer)
+    while True:
+        shoulder, hand = child.recv()
+        update_frame("shoulder", viz.viewer,   shoulder)
+        update_frame('hand', viz.viewer, hand, [0.5, 0, 0])
+
+def visualize_solution(viz, child):
+    viewer = meshcat.Visualizer(zmq_url = "tcp://127.0.0.1:6014")
+    viz.initViewer(viewer)
+    viz.loadViewerModel()
+    viz.initializeFrames()
+    viz.display_frames = True
+    viz.display(np.zeros(5))
+    # add_frame("hand", viz.viewer)
+    # add_frame("shoulder", viz.viewer)
+    while True:
+        xs = child.recv()
+        for i in range(len(xs)):
+            viz.display(xs[i][:5])

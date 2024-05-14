@@ -1,6 +1,8 @@
 import crocoddyl
 from mim_solvers import SolverSQP
 import numpy as np
+import time
+
 
 def solve_estimation_problem(measurements, T, rmodel, x0):
     rdata = rmodel.createData()
@@ -59,7 +61,7 @@ def solve_estimation_problem(measurements, T, rmodel, x0):
         
     # Create the shooting problem
     problem = crocoddyl.ShootingProblem(x0, runningModel, terminalModel)
-    
+
     # Create solver + callbacks
     ddp = SolverSQP(problem)
     # ddp = crocoddyl.SolverDDP(problem)
@@ -69,8 +71,17 @@ def solve_estimation_problem(measurements, T, rmodel, x0):
     # Warm start : initial state + gravity compensation
     xs_init = [x0 for i in range(T+1)]
     us_init = ddp.problem.quasiStatic(xs_init[:-1])
-    
     # Solve
     ddp.solve(xs_init, us_init, maxiter=10)
-    
     return ddp
+
+
+def solve_estimation_parallel(child_conn):
+    while True:
+        measurements, T, rmodel, x0 = child_conn.recv()
+        st = time.time()
+        xs = solve_estimation_problem(measurements, T, rmodel, x0).xs
+        et = time.time()
+        # print("ddp solve time : ", 1e3 * (et - st))
+
+        child_conn.send(np.array(xs[-1]))

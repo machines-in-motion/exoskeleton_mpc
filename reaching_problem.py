@@ -7,9 +7,10 @@ from mim_solvers import SolverSQP, SolverCSQP
 import numpy as np
 import pinocchio as pin
 import crocoddyl
+import time
 
 
-def solve_reaching_problem(x_des, q0, rmodel):
+def solve_reaching_problem(x_des, q0, rmodel, T, dt):
     rdata = rmodel.createData()
     nq = rmodel.nq; nv = rmodel.nv; nu = nq; nx = nq+nv
     v0 = np.zeros(nv)
@@ -57,12 +58,10 @@ def solve_reaching_problem(x_des, q0, rmodel):
     terminal_DAM = crocoddyl.DifferentialActionModelFreeFwdDynamics(state, actuation, terminalCostModel)
     
     # Create Integrated Action Model (IAM), i.e. Euler integration of continuous dynamics and cost
-    dt = 1e-2
     runningModel = crocoddyl.IntegratedActionModelEuler(running_DAM, dt)
     terminalModel = crocoddyl.IntegratedActionModelEuler(terminal_DAM, 0.)
         
     # Create the shooting problem
-    T = 100
     problem = crocoddyl.ShootingProblem(x0, [runningModel] * T, terminalModel)
     
     # Create solver + callbacks
@@ -78,3 +77,13 @@ def solve_reaching_problem(x_des, q0, rmodel):
     ddp.solve(xs_init, us_init, maxiter=5)
     
     return ddp
+
+
+def solve_reaching_problem_parallel(child_conn, T, dt):
+    while True:
+        x_des, q0, rmodel = child_conn.recv()
+        st = time.time()
+        ddp = solve_reaching_problem(x_des, q0, rmodel, T, dt)
+        et = time.time()
+        # print("ddp solve time : ", 1e3 * (et - st))
+        child_conn.send([np.array(ddp.xs), np.array(ddp.us)])
