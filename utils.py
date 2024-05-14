@@ -62,9 +62,11 @@ def visualize_estimate(child, viz):
     add_frame("hand", viz.viewer)
     add_frame("shoulder", viz.viewer)
     while True:
-        shoulder, hand = child.recv()
+        shoulder, hand, estimate = child.recv()
         update_frame("shoulder", viz.viewer,   shoulder)
         update_frame('hand', viz.viewer, hand, [0.5, 0, 0])
+        viz.display(estimate[:5])
+
 
 def visualize_solution(viz, child):
     viewer = meshcat.Visualizer(zmq_url = "tcp://127.0.0.1:6014")

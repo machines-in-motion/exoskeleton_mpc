@@ -10,7 +10,7 @@ def create_arm():
 
     # My Desired
     parent_id = 0
-    arm_mass = 2.0
+    arm_mass = 2.5
     upper_arm_radius = 2e-2
     upper_arm_length = 0.25
     lower_arm_radius = 1e-2
@@ -66,7 +66,7 @@ def create_arm():
     gmodel.addGeometryObject(geom_obj)
 
     # Lower Arm1
-    lower_arm_inertia = pin.Inertia.FromCylinder(arm_mass, lower_arm_radius, lower_arm_length/2)
+    lower_arm_inertia = pin.Inertia.FromCylinder(arm_mass/2, lower_arm_radius, lower_arm_length/2)
     lower_arm_placement = elbow_placement.copy()
     lower_arm_placement.translation[2] = -lower_arm_length/4.0
     rmodel.appendBodyToJoint(elbow_id, lower_arm_inertia, lower_arm_placement)
@@ -80,7 +80,7 @@ def create_arm():
     gmodel.addGeometryObject(lower_arm_obj)
 
     #Lower Arm2
-    lower_arm_inertia2 = pin.Inertia.FromCylinder(arm_mass, lower_arm_radius, lower_arm_length/2)
+    lower_arm_inertia2 = pin.Inertia.FromCylinder(arm_mass/2, lower_arm_radius, lower_arm_length/2)
     lower_arm_placement2 = lar.copy()
     lower_arm_placement2.translation[2] = -lower_arm_length/4.0
     rmodel.appendBodyToJoint(lar_id, lower_arm_inertia2, lower_arm_placement2)
