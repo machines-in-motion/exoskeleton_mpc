@@ -64,7 +64,6 @@ def visualize_solution(viz, child):
     viz.loadViewerModel()
     viz.initializeFrames()
     viz.display_frames = True
-    viz.display(np.zeros(5))
     # add_frame("hand", viz.viewer)
     # add_frame("shoulder", viz.viewer)
     while True:

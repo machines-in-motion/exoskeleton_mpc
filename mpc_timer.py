@@ -19,7 +19,7 @@ interface = ExoSkeletonUDPInterface()
 counter = 0
 interface.calibrate()
 
-offset = [pin.utils.rpyToMatrix(np.pi/2.0, 0, 0), 0]
+offset = [0,0,0,1, 0]
 
 rmodel, rdata, gmodel, cmodel = create_arm()
 
@@ -137,7 +137,7 @@ data_motor = []
 data_torque = []
 
 gst = time.perf_counter()
-iteration_count = int(1e4)
+iteration_count = int(1e6)
 no_torque = 0
 interface.setCommand([0], [0.], [0], [0], [0.0])
 time.sleep(0.001)
@@ -153,7 +153,7 @@ for i in range(iteration_count):
     measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, joint_angle))
 
     if get_new_measurement:
-        viz_estimate_parent.send([base.T @ shoulder, base.T @ hand, estimate_x0])
+        viz_estimate_parent.send([imu_offset[0] @ base.T @ shoulder, imu_offset[1] @ base.T @ hand, estimate_x0])
         estimate_parent.send([measurement, T_estimate, rmodel, np.zeros(rmodel.nq + rmodel.nv), 1])
         get_new_measurement = 0
         recieve_new_estimate = 1.0
@@ -172,7 +172,7 @@ for i in range(iteration_count):
         xs, us = mpc_parent.recv()         
         solve_mpc = 1.0
         recieve_new_measurement = 0.0
-        viz_parent.send(xs)
+        # viz_parent.send(xs)
         index = 0
 
     if (counter) % knot_points == 0:
@@ -182,13 +182,13 @@ for i in range(iteration_count):
         torque_command_arr = np.linspace(us[index][1], us[index+1][1], endpoint = True, num = int(knot_points))
     print(joint_angle, estimate_x0[1])
     # print(counter, knot_points, index, replan_freq, recieve_new_measurement, solve_mpc)
-    pin.framesForwardKinematics(rmodel, rdata, estimate_x0[:5])
+    pin.framesForwardKinematics(rmodel, rdata, estimate_x0[:rmodel.nq])
     pin.updateFramePlacements(rmodel, rdata)
     data_estimate.append(estimate_x0[1])
     data_motor.append(joint_angle)
     effecto_estimate.append(np.array(rdata.oMf[rmodel.getFrameId("Hand")].translation).copy())
 
-    tau_grav = pin.rnea(rmodel, rdata, estimate_x0[:5], np.zeros(5), np.zeros(5))[1]
+    tau_grav = pin.rnea(rmodel, rdata, estimate_x0[:rmodel.nq], np.zeros(rmodel.nv), np.zeros(rmodel.nv))[1]
     desired_joint_torque = torque_command_arr[counter-1] - tau_grav
     #TODO: jacobian should me moved to the firmware
     motor_torque_grav = (2*0.16600942* state["motor_q"][0] - 0.73458596)*tau_grav
