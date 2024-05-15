@@ -9,17 +9,7 @@ from scipy.spatial.transform import Rotation
 class ArmMeasurementCurrent:
     arm_orientation : np.array
     palm_orientation : np.array
-    imu_to_world = pin.utils.rpyToMatrix(0, -np.pi/2.0, 0)
-    tmp1 = pin.utils.rpyToMatrix(np.pi/2.0, -np.pi/2.0, 0)
-
-
-    # def __init__(self, state):
-        # print(state["base_ori"],state["shoulder_ori"], state["wrist_ori"])
-        # base = Rotation.from_quat(np.squeeze(state["base_ori"])).as_matrix()
-        # shoulder = Rotation.from_quat(np.squeeze(state["shoulder_ori"])).as_matrix()
-        # wrist = Rotation.from_quat(np.squeeze(state["wrist_ori"])).as_matrix()
-        # self.arm_orientation = self.tmp1@base.T@shoulder
-        # self.palm_orientation = self.imu_to_world@base.T@wrist
+    joint_angle : np.array
 
 def add_frame(name, vis):
     xbox = meshcat.geometry.Box([0.1, 0.01, 0.01])

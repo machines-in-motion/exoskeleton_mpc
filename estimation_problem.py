@@ -4,7 +4,7 @@ import numpy as np
 import time
 
 
-def solve_estimation_problem(measurements, T, rmodel, x0):
+def solve_estimation_problem(measurements, T, rmodel, x0, activate_wts):
     rdata = rmodel.createData()
     nq = rmodel.nq; nv = rmodel.nv; nu = nq; nx = nq+nv
 
@@ -23,9 +23,6 @@ def solve_estimation_problem(measurements, T, rmodel, x0):
     # Control regularization cost
     uResidual = crocoddyl.ResidualModelControlGrav(state)
     uRegCost = crocoddyl.CostModelResidual(state, uResidual)
-    # State regularization cost
-    xResidual = crocoddyl.ResidualModelState(state, x0)
-    xRegCost = crocoddyl.CostModelResidual(state, xResidual)
 
     runningModel = []
     for i in range(T):
@@ -42,11 +39,18 @@ def solve_estimation_problem(measurements, T, rmodel, x0):
         runningCostModel = crocoddyl.CostModelSum(state)
         terminalCostModel = crocoddyl.CostModelSum(state)
         
+
+        # State regularization cost
+        x0[1] = measurements[i].joint_angle
+        activation = crocoddyl.ActivationModelWeightedQuad(np.array([0.2, activate_wts*1e5, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3 ]))
+        xResidual = crocoddyl.ResidualModelState(state, x0)
+        xRegCost = crocoddyl.CostModelResidual(state, activation, xResidual)
+
         # Add costs
-        runningCostModel.addCost("stateReg", xRegCost, 5e-3)
+        runningCostModel.addCost("stateReg", xRegCost, 5e-2)
         runningCostModel.addCost("ctrlRegGrav", uRegCost, 5e-3)
-        runningCostModel.addCost("shoulderOrientation", imuArmOrientationCost, 5e2)
-        runningCostModel.addCost("wristOrientation", frameOrientationCost, 6e2)
+        runningCostModel.addCost("shoulderOrientation", imuArmOrientationCost, 1e2)
+        runningCostModel.addCost("wristOrientation", frameOrientationCost, 1e2)
         
     
         # Create Differential Action Model (DAM), i.e. continuous dynamics and cost functions
@@ -78,9 +82,9 @@ def solve_estimation_problem(measurements, T, rmodel, x0):
 
 def solve_estimation_parallel(child_conn):
     while True:
-        measurements, T, rmodel, x0 = child_conn.recv()
+        measurements, T, rmodel, x0, activate_wts = child_conn.recv()
         st = time.time()
-        xs = solve_estimation_problem(measurements, T, rmodel, x0).xs
+        xs = solve_estimation_problem(measurements, T, rmodel, x0, activate_wts).xs
         et = time.time()
         # print("ddp solve time : ", 1e3 * (et - st))
 

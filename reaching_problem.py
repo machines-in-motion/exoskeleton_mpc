@@ -10,11 +10,11 @@ import crocoddyl
 import time
 
 
-def solve_reaching_problem(x_des, q0, rmodel, T, dt):
+def solve_reaching_problem(x_des, x0, rmodel, T, dt):
     rdata = rmodel.createData()
     nq = rmodel.nq; nv = rmodel.nv; nu = nq; nx = nq+nv
-    v0 = np.zeros(nv)
-    x0 = np.concatenate([q0, v0])
+    assert len(x0) == nx
+    q0, v0 = x0[:nq], x0[nq:]
     pin.framesForwardKinematics(rmodel, rdata, q0)
     pin.computeJointJacobians(rmodel, rdata, q0)
     
@@ -51,7 +51,7 @@ def solve_reaching_problem(x_des, q0, rmodel, T, dt):
     runningCostModel.addCost("ctrlRegGrav", uRegCost, 1e-3)
     runningCostModel.addCost("translation", frameTranslationCost, 1e0)
     terminalCostModel.addCost("stateReg", xRegCost, 1e-1)
-    terminalCostModel.addCost("translation", frameTranslationCost, 1e2)
+    terminalCostModel.addCost("translation", frameTranslationCost, 2e0)
     
     # Create Differential Action Model (DAM), i.e. continuous dynamics and cost functions
     running_DAM = crocoddyl.DifferentialActionModelFreeFwdDynamics(state, actuation, runningCostModel)

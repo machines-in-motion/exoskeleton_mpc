@@ -25,7 +25,7 @@ rmodel, rdata, gmodel, cmodel = create_arm()
 
 q0 = np.array([0,-np.pi/6.0,0,-np.pi/2.0,0])
 
-x_des = np.array([0.4, 0, -0.5])
+x_des = np.array([0.3, 0, 0.2])
 
 data_offset = []
 
@@ -54,14 +54,16 @@ imu_offset[1] = data_offset[50][1].T
 
 # estimation threading setup
 get_new_measurement = 1.0
+recieve_new_estimate = 0.0
 estimate_parent, estimate_child = Pipe()
 estimation_thread = Process(target = solve_estimation_parallel, args = (estimate_child,))
 estimation_thread.start()
 
 # mpc threading setup
 solve_mpc = 1.0
+recieve_new_measurement = 0.0
 T_mpc = 10
-dt = 1e-1
+dt = 5e-2
 mpc_parent, mpc_child = Pipe()
 mpc_thread = Process(target = solve_reaching_problem_parallel, args = (mpc_child, T_mpc, dt))
 mpc_thread.start()
@@ -77,49 +79,65 @@ viz_estimate_thread = Process(target = visualize_estimate, args = (viz_estimate_
 viz_estimate_thread.start()
 
 for i in range (T_estimate):
-    interface.setCommand([0], [0.], [0], [0], [1.0])
+    interface.setCommand([0], [0.], [0], [0], [2.0])
     time.sleep(0.001)
     state = interface.getState()
-    state = interface.getState()
+
     base = Rotation.from_quat(state["base_ori"][0]).as_matrix()
     shoulder = Rotation.from_quat(state["shoulder_ori"][0]).as_matrix()
     hand = Rotation.from_quat(state["wrist_ori"][0]).as_matrix()    
-    measurement.append(ArmMeasurementCurrent( base.T @ shoulder, base.T @ hand))
+    measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, 0))
 
 shoulder_offset_time = 500
 
-offset_x0 = 0
-offset_shoulder = 0
+offset_x0 = [0,0]
+motor_offset_shoulder = 0
+
+print("estimating motor offset ...")
 
 for i in range(shoulder_offset_time):
-    interface.setCommand([0], [0.], [0], [0], [1.0])
+    interface.setCommand([0], [0.], [0], [0], [2.0])
     time.sleep(0.001)
     state = interface.getState()
     base = Rotation.from_quat(state["base_ori"][0]).as_matrix()
     shoulder = Rotation.from_quat(state["shoulder_ori"][0]).as_matrix()
     hand = Rotation.from_quat(state["wrist_ori"][0]).as_matrix()  
-    estimate_parent.send([measurement, T_estimate, rmodel, np.zeros(rmodel.nq + rmodel.nv)])
-    offset_x0 += estimate_parent.recv()[1]   
+    measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, 0))
+    estimate_parent.send([measurement, T_estimate, rmodel, np.zeros(rmodel.nq + rmodel.nv), 0])
+    estimate_x0 = estimate_parent.recv()
+    offset_x0[0] += estimate_x0[1]
+    offset_x0[1] += state["q"][0]
+    # print(estimate_parent.recv()[1], state["q"][0])
+motor_offset_shoulder = (offset_x0[0] - offset_x0[1])/shoulder_offset_time
 
-offset_shoulder = state["q"] + (offset_x0/shoulder_offset_time)
 
+for i in range (T_estimate):
+    interface.setCommand([0], [0.], [0], [0], [2.0])
+    time.sleep(0.001)
+    state = interface.getState()
+    joint_angle = state['q'][0] + motor_offset_shoulder
 
-counter = 0
+    base = Rotation.from_quat(state["base_ori"][0]).as_matrix()
+    shoulder = Rotation.from_quat(state["shoulder_ori"][0]).as_matrix()
+    hand = Rotation.from_quat(state["wrist_ori"][0]).as_matrix()    
+    measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, joint_angle))
+
+counter = 1
 index = 0
 ctrl_dt = 0.002
-replan_freq = 0.01
+replan_freq = 0.3
 knot_points = int(dt/ctrl_dt)
 us = np.zeros((T_mpc, rmodel.nv))
 buffer = 0.04/1e3
 
 # statistics data 
-ctrl_data = []
+effecto_estimate = []
 data_estimate = []
 data_motor = []
 data_torque = []
 
 gst = time.perf_counter()
-iteration_count = int(8e3)
+iteration_count = int(1e4)
 no_torque = 0
 interface.setCommand([0], [0.], [0], [0], [0.0])
 time.sleep(0.001)
@@ -127,45 +145,62 @@ time.sleep(0.001)
 for i in range(iteration_count):
     st = time.perf_counter()
     state = interface.getState()
+    joint_angle = state['q'][0] + motor_offset_shoulder
 
     base = Rotation.from_quat(state["base_ori"][0]).as_matrix()
     shoulder = Rotation.from_quat(state["shoulder_ori"][0]).as_matrix()
     hand = Rotation.from_quat(state["wrist_ori"][0]).as_matrix()    
-    measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand))
+    measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, joint_angle))
 
     if get_new_measurement:
         viz_estimate_parent.send([base.T @ shoulder, base.T @ hand, estimate_x0])
-        estimate_parent.send([measurement, T_estimate, rmodel, np.zeros(rmodel.nq + rmodel.nv)])
+        estimate_parent.send([measurement, T_estimate, rmodel, np.zeros(rmodel.nq + rmodel.nv), 1])
         get_new_measurement = 0
+        recieve_new_estimate = 1.0
 
-    if estimate_parent.poll():
+    if estimate_parent.poll() and recieve_new_estimate:
         estimate_x0 = estimate_parent.recv()   
         get_new_measurement = 1.0
+        recieve_new_estimate = 0.0
 
     if solve_mpc and index*dt >= replan_freq:
-        mpc_parent.send([x_des, estimate_x0[:rmodel.nq], rmodel])
+        mpc_parent.send([x_des, estimate_x0, rmodel])
         solve_mpc = 0
+        recieve_new_measurement = 1.0
 
-    if mpc_parent.poll():
+    if mpc_parent.poll() and recieve_new_measurement:
         xs, us = mpc_parent.recv()         
         solve_mpc = 1.0
+        recieve_new_measurement = 0.0
         viz_parent.send(xs)
         index = 0
 
-    if counter % knot_points == 0:
-        counter = 0
+    if (counter) % knot_points == 0:
+        counter = 1
         index += 1
-        torque_command_arr = np.linspace(us[index], us[index+1], endpoint = True, axis = 0, num = int(knot_points))
-
-    # print(counter, knot_points, index, replan_freq)
-    # print(i, estimate_x0[1], state['q'])
+    if counter == 1:
+        torque_command_arr = np.linspace(us[index][1], us[index+1][1], endpoint = True, num = int(knot_points))
+    print(joint_angle, estimate_x0[1])
+    # print(counter, knot_points, index, replan_freq, recieve_new_measurement, solve_mpc)
+    pin.framesForwardKinematics(rmodel, rdata, estimate_x0[:5])
+    pin.updateFramePlacements(rmodel, rdata)
     data_estimate.append(estimate_x0[1])
-    data_motor.append(-state["q"][0])
-    torque_command = max(0.0,-0.2*torque_command_arr[counter][1])
-    data_torque.append(torque_command_arr[counter][1])
+    data_motor.append(joint_angle)
+    effecto_estimate.append(np.array(rdata.oMf[rmodel.getFrameId("Hand")].translation).copy())
+
+    tau_grav = pin.rnea(rmodel, rdata, estimate_x0[:5], np.zeros(5), np.zeros(5))[1]
+    desired_joint_torque = torque_command_arr[counter-1] - tau_grav
+    #TODO: jacobian should me moved to the firmware
+    motor_torque_grav = (2*0.16600942* state["motor_q"][0] - 0.73458596)*tau_grav
+    motor_torque = (2*0.16600942* state["motor_q"][0] - 0.73458596)*desired_joint_torque
+    motor_torque = max(0.0,0.8*motor_torque)
+
+    data_torque.append([desired_joint_torque -  tau_grav, motor_torque_grav])
     if i < 2000:
-        torque_command = 0
-    interface.setCommand([0], [0.], [0], [0], [torque_command])
+        torque_command = 0.3
+    else:
+        torque_command = max(0.3,motor_torque_grav)
+    interface.setCommand([0], [0.], [0], [0], [2.0])
 
     et = time.perf_counter()
     while (et - st) < ctrl_dt - buffer:
@@ -175,8 +210,6 @@ for i in range(iteration_count):
         print("Danger")
         assert False
 
-    # print((et - st)*1e3)
-    ctrl_data.append(index)
     counter += 1
 
 get = time.perf_counter()
@@ -184,11 +217,33 @@ get = time.perf_counter()
 print("Actual total time :", get - gst)
 print("Expected total time :", ctrl_dt * iteration_count)
 
+interface.setCommand([0], [0.], [0], [0], [0.0])
+
 import matplotlib.pyplot as plt
 
-# plt.plot(data_estimate, label = "estimate")
-# plt.plot(data_motor, label = "motor")
-plt.plot(data_torque)
+data_torque = np.array(data_torque)
+effecto_estimate = np.array(effecto_estimate)
+
+fig, ax = plt.subplots(3)
+
+
+time_scale = ctrl_dt * np.arange(0, len(data_torque))
+ax[0].plot(time_scale, data_torque[:,0], '--bo', label = "ddp")
+ax[0].plot(time_scale, data_torque[:,1], label = "motor")
+ax[0].grid()
+ax[0].legend()
+
+ax[1].plot(data_estimate, label = "estimate angle")
+ax[1].plot(data_motor, label = "joint angle")
+ax[1].grid()
+ax[1].legend()
+
+
+
+ax[2].plot(effecto_estimate[:,2], label = "estimate")
+ax[2].plot(len(effecto_estimate)*[x_des[2]], label = "target")
+
+# plt.plot(data_torque)
 plt.grid()
 plt.legend()
 plt.show()
