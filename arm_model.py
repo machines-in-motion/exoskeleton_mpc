@@ -9,22 +9,32 @@ import hppfcl as fcl
 def create_arm():
 
     parent_id = 0
-    arm_mass = 1.0
+    arm_mass = 1.5
     upper_arm_radius = 2e-2
     upper_arm_length = 0.25
     lower_arm_radius = 1e-2
     lower_arm_length = 0.25
-    axis_length = 0.1 # length of the co-ordinate axis rectangle
-
 
     rmodel = pin.Model()
     rmodel.name = "Human Arm"
     gmodel = pin.GeometryModel()
 
     # Joint
-    joint_name = "Shoulder"
+    # joint_name = "Shoulder"
+    # Base_placement = pin.SE3.Identity()
+    # Base_id = rmodel.addJoint(parent_id, pin.JointModelSphericalZYX(), Base_placement, joint_name)
+
+    joint_name = "Shoulder_x"
     Base_placement = pin.SE3.Identity()
-    Base_id = rmodel.addJoint(parent_id, pin.JointModelSphericalZYX(), Base_placement, joint_name)
+    shoulderx_id = rmodel.addJoint(parent_id, pin.JointModelRX(), Base_placement, joint_name)
+
+    joint_name = "Shoulder_y"
+    Base_placement = pin.SE3.Identity()
+    shouldery_id = rmodel.addJoint(shoulderx_id, pin.JointModelRY(), Base_placement, joint_name)
+    
+    joint_name = "ShoulderZ"
+    Base_placement = pin.SE3.Identity()
+    Base_id = rmodel.addJoint(shouldery_id, pin.JointModelRZ(), Base_placement, joint_name)
 
     frame_name = "imu_arm"
     imu_arm_placement = pin.SE3.Identity()

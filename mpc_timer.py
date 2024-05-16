@@ -24,8 +24,6 @@ rmodel, rdata, gmodel, cmodel = create_arm()
 
 q0 = np.array([0,-np.pi/6.0,0,-np.pi/2.0,0])
 
-x_des = np.array([0.3, -0.0, -0.1])
-
 data_offset = []
 
 T_estimate = 10
@@ -136,10 +134,15 @@ data_motor = []
 data_torque = []
 
 gst = time.perf_counter()
-iteration_count = int(1e4)
+iteration_count = int(2e4)
 no_torque = 0
 interface.setCommand([0], [0.], [0], [0], [0.0])
 time.sleep(0.001)
+
+# target
+x_des = np.array([0.4, -0.2, -0.0])
+
+# vicon_target = ViconTarget()
 
 for i in range(iteration_count):
     st = time.perf_counter()
@@ -152,7 +155,7 @@ for i in range(iteration_count):
     measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, joint_angle))
 
     if get_new_measurement:
-        viz_estimate_parent.send([imu_offset[0] @ base.T @ shoulder, imu_offset[1] @ base.T @ hand, estimate_x0])
+        viz_estimate_parent.send([imu_offset[0] @ base.T @ shoulder, imu_offset[1] @ base.T @ hand, estimate_x0, x_des])
         estimate_parent.send([measurement, T_estimate, rmodel, np.zeros(rmodel.nq + rmodel.nv), 1])
         get_new_measurement = 0
         recieve_new_estimate = 1.0
@@ -163,6 +166,7 @@ for i in range(iteration_count):
         recieve_new_estimate = 0.0
 
     if solve_mpc and index*dt >= replan_freq:
+        # x_des = vicon_target.get_taget()
         mpc_parent.send([x_des.copy(), estimate_x0.copy(), rmodel])
         solve_mpc = 0
         recieve_new_measurement = 1.0
@@ -171,7 +175,7 @@ for i in range(iteration_count):
         xs, us = mpc_parent.recv()         
         solve_mpc = 1.0
         recieve_new_measurement = 0.0
-        viz_parent.send(xs)
+        # viz_parent.send(xs)
         index = 0
 
     if (counter) % knot_points == 0:
@@ -196,6 +200,7 @@ for i in range(iteration_count):
     if i < 2000:
         torque_command = 0.3
     else:
+        print("semdomg cpommand")
         torque_command = max(0.3, motor_torque)
     interface.setCommand([0], [0.], [0], [0], [torque_command])
 

@@ -1,5 +1,5 @@
 import crocoddyl
-from mim_solvers import SolverSQP
+from mim_solvers import SolverSQP, SolverCSQP
 import numpy as np
 import time
 
@@ -42,19 +42,32 @@ def solve_estimation_problem(measurements, T, rmodel, x0, activate_wts):
 
         # State regularization cost
         x0[1] = measurements[i].joint_angle
-        activation = crocoddyl.ActivationModelWeightedQuad(np.array([0.2, activate_wts*2e2, 0.2, 0.2, 10.0, 0.3, 0.3, 0.3, 0.3, 0.3 ]))
+        activation = crocoddyl.ActivationModelWeightedQuad(np.array([0.01, activate_wts*2e2, 0.01, 0.01, 0.1, 0.3, 0.3, 0.3, 0.3, 0.3 ]))
         xResidual = crocoddyl.ResidualModelState(state, x0)
         xRegCost = crocoddyl.CostModelResidual(state, activation, xResidual)
+        acc_refs = crocoddyl.ResidualModelJointAcceleration(state, nu)
+        accCost = crocoddyl.CostModelResidual(state, acc_refs)    
 
         # Add costs
-        runningCostModel.addCost("stateReg", xRegCost, 5e-2)
-        runningCostModel.addCost("ctrlRegGrav", uRegCost, 5e-3)
-        runningCostModel.addCost("shoulderOrientation", imuArmOrientationCost, 3e1)
-        runningCostModel.addCost("wristOrientation", frameOrientationCost, 5e1)
-        
-    
+        runningCostModel.addCost("stateReg", xRegCost, 1e-3)
+        runningCostModel.addCost("ctrlRegGrav", uRegCost, 1e-3)
+        runningCostModel.addCost("acceleration", accCost, 1e-4)
+        runningCostModel.addCost("shoulderOrientation", imuArmOrientationCost, 2e1)
+        runningCostModel.addCost("wristOrientation", frameOrientationCost, 2e1)
+
+        #constraints
+        constraints = crocoddyl.ConstraintModelManager(state, nu)
+        ee_contraint = crocoddyl.ConstraintModelResidual(
+        state,
+        xResidual,
+        np.array([-np.pi/3,-np.pi/3,0.0, -1000, -np.pi/2, -2, -2, -2, -2, -2]),
+        np.array([0, np.pi/3.0, np.pi/2, np.pi/2, 1000, 2, 2, 2, 2, 2]),
+        )
+        constraints.addConstraint("ee_bound", ee_contraint)
+
+
         # Create Differential Action Model (DAM), i.e. continuous dynamics and cost functions
-        running_DAM = crocoddyl.DifferentialActionModelFreeFwdDynamics(state, actuation, runningCostModel)
+        running_DAM = crocoddyl.DifferentialActionModelFreeFwdDynamics(state, actuation, runningCostModel, constraints)
         runningModel.append(crocoddyl.IntegratedActionModelEuler(running_DAM, dt))
 
     terminal_DAM = crocoddyl.DifferentialActionModelFreeFwdDynamics(state, actuation, runningCostModel)
