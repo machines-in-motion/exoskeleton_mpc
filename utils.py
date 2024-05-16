@@ -3,6 +3,7 @@ import numpy as np
 import pinocchio as pin
 from dataclasses import dataclass
 from scipy.spatial.transform import Rotation
+import time 
 
 # This class takes the current imu orienation and computes the arm and shoulder orinetation in the world frame
 @dataclass
@@ -56,6 +57,7 @@ def visualize_estimate(child, viz):
         update_frame("shoulder", viz.viewer,   shoulder)
         update_frame('hand', viz.viewer, hand, [0.5, 0, 0])
         viz.display(estimate[:5])
+        
 
 
 def visualize_solution(viz, child):
@@ -70,3 +72,4 @@ def visualize_solution(viz, child):
         xs = child.recv()
         for i in range(len(xs)):
             viz.display(xs[i][:5])
+            time.sleep(0.001)

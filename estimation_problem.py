@@ -42,15 +42,15 @@ def solve_estimation_problem(measurements, T, rmodel, x0, activate_wts):
 
         # State regularization cost
         x0[1] = measurements[i].joint_angle
-        activation = crocoddyl.ActivationModelWeightedQuad(np.array([0.2, activate_wts*1e1, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3 ]))
+        activation = crocoddyl.ActivationModelWeightedQuad(np.array([0.2, activate_wts*2e2, 0.2, 0.2, 10.0, 0.3, 0.3, 0.3, 0.3, 0.3 ]))
         xResidual = crocoddyl.ResidualModelState(state, x0)
         xRegCost = crocoddyl.CostModelResidual(state, activation, xResidual)
 
         # Add costs
         runningCostModel.addCost("stateReg", xRegCost, 5e-2)
         runningCostModel.addCost("ctrlRegGrav", uRegCost, 5e-3)
-        runningCostModel.addCost("shoulderOrientation", imuArmOrientationCost, 1e2)
-        runningCostModel.addCost("wristOrientation", frameOrientationCost, 1e2)
+        runningCostModel.addCost("shoulderOrientation", imuArmOrientationCost, 3e1)
+        runningCostModel.addCost("wristOrientation", frameOrientationCost, 5e1)
         
     
         # Create Differential Action Model (DAM), i.e. continuous dynamics and cost functions

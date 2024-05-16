@@ -6,7 +6,6 @@ import collections
 from utils import ArmMeasurementCurrent, visualize_estimate, visualize_solution
 from arm_model import create_arm
 from pinocchio.visualize import MeshcatVisualizer as Visualizer
-import meshcat
 from estimation_problem import solve_estimation_parallel
 from reaching_problem import solve_reaching_problem_parallel
 
@@ -25,7 +24,7 @@ rmodel, rdata, gmodel, cmodel = create_arm()
 
 q0 = np.array([0,-np.pi/6.0,0,-np.pi/2.0,0])
 
-x_des = np.array([0.3, 0, 0.2])
+x_des = np.array([0.3, -0.0, -0.1])
 
 data_offset = []
 
@@ -63,7 +62,7 @@ estimation_thread.start()
 solve_mpc = 1.0
 recieve_new_measurement = 0.0
 T_mpc = 10
-dt = 5e-2
+dt = 0.1   
 mpc_parent, mpc_child = Pipe()
 mpc_thread = Process(target = solve_reaching_problem_parallel, args = (mpc_child, T_mpc, dt))
 mpc_thread.start()
@@ -125,7 +124,7 @@ for i in range (T_estimate):
 counter = 1
 index = 0
 ctrl_dt = 0.002
-replan_freq = 0.3
+replan_freq = 0.1
 knot_points = int(dt/ctrl_dt)
 us = np.zeros((T_mpc, rmodel.nv))
 buffer = 0.04/1e3
@@ -137,7 +136,7 @@ data_motor = []
 data_torque = []
 
 gst = time.perf_counter()
-iteration_count = int(1e6)
+iteration_count = int(1e4)
 no_torque = 0
 interface.setCommand([0], [0.], [0], [0], [0.0])
 time.sleep(0.001)
@@ -164,7 +163,7 @@ for i in range(iteration_count):
         recieve_new_estimate = 0.0
 
     if solve_mpc and index*dt >= replan_freq:
-        mpc_parent.send([x_des, estimate_x0, rmodel])
+        mpc_parent.send([x_des.copy(), estimate_x0.copy(), rmodel])
         solve_mpc = 0
         recieve_new_measurement = 1.0
 
@@ -172,7 +171,7 @@ for i in range(iteration_count):
         xs, us = mpc_parent.recv()         
         solve_mpc = 1.0
         recieve_new_measurement = 0.0
-        # viz_parent.send(xs)
+        viz_parent.send(xs)
         index = 0
 
     if (counter) % knot_points == 0:
@@ -180,7 +179,7 @@ for i in range(iteration_count):
         index += 1
     if counter == 1:
         torque_command_arr = np.linspace(us[index][1], us[index+1][1], endpoint = True, num = int(knot_points))
-    print(joint_angle, estimate_x0[1])
+    # print(joint_angle, estimate_x0[1])
     # print(counter, knot_points, index, replan_freq, recieve_new_measurement, solve_mpc)
     pin.framesForwardKinematics(rmodel, rdata, estimate_x0[:rmodel.nq])
     pin.updateFramePlacements(rmodel, rdata)
@@ -189,18 +188,18 @@ for i in range(iteration_count):
     effecto_estimate.append(np.array(rdata.oMf[rmodel.getFrameId("Hand")].translation).copy())
 
     tau_grav = pin.rnea(rmodel, rdata, estimate_x0[:rmodel.nq], np.zeros(rmodel.nv), np.zeros(rmodel.nv))[1]
-    desired_joint_torque = torque_command_arr[counter-1] - tau_grav
+    desired_joint_torque = torque_command_arr[counter-1]
     #TODO: jacobian should me moved to the firmware
     motor_torque_grav = (2*0.16600942* state["motor_q"][0] - 0.73458596)*tau_grav
     motor_torque = (2*0.16600942* state["motor_q"][0] - 0.73458596)*desired_joint_torque
-    motor_torque = max(0.0,0.8*motor_torque)
 
-    data_torque.append([desired_joint_torque -  tau_grav, motor_torque_grav])
     if i < 2000:
         torque_command = 0.3
     else:
-        torque_command = max(0.3,motor_torque_grav)
-    interface.setCommand([0], [0.], [0], [0], [2.0])
+        torque_command = max(0.3, motor_torque)
+    interface.setCommand([0], [0.], [0], [0], [torque_command])
+
+    data_torque.append([desired_joint_torque, torque_command])
 
     et = time.perf_counter()
     while (et - st) < ctrl_dt - buffer:
@@ -224,7 +223,7 @@ import matplotlib.pyplot as plt
 data_torque = np.array(data_torque)
 effecto_estimate = np.array(effecto_estimate)
 
-fig, ax = plt.subplots(3)
+fig, ax = plt.subplots(3, sharex = True)
 
 
 time_scale = ctrl_dt * np.arange(0, len(data_torque))
@@ -233,15 +232,15 @@ ax[0].plot(time_scale, data_torque[:,1], label = "motor")
 ax[0].grid()
 ax[0].legend()
 
-ax[1].plot(data_estimate, label = "estimate angle")
-ax[1].plot(data_motor, label = "joint angle")
+ax[1].plot(time_scale, (180/np.pi)*np.array(data_estimate), label = "estimate angle")
+ax[1].plot(time_scale, (180/np.pi)*np.array(data_motor), label = "joint angle")
 ax[1].grid()
 ax[1].legend()
 
 
 
-ax[2].plot(effecto_estimate[:,2], label = "estimate")
-ax[2].plot(len(effecto_estimate)*[x_des[2]], label = "target")
+ax[2].plot(time_scale, effecto_estimate[:,2], label = "estimate")
+ax[2].plot(time_scale, len(effecto_estimate)*[x_des[2]], label = "target")
 
 # plt.plot(data_torque)
 plt.grid()
