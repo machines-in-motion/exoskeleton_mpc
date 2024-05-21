@@ -27,18 +27,18 @@ x0[:rmodel.nq] = q0
 tau_arr = []
 xs = None
 
-for j in range(60):
-    x_des = x_des_arr[int(j/20)]
+for j in range(100):
+    x_des = x_des_arr[int(j/3)]
     ddp = solve_reaching_problem(x_des, x0, rmodel, T, dt, xs = xs)
     xs, us = ddp.xs.copy(), ddp.us.copy()
     for i in range(len(us)):
         viz.display(xs[i][:5])
         tau_arr.append(us[i][1])
-        time.sleep(0.01)
-        print((180/np.pi)*xs[i][:3], x_des)
+        time.sleep(dt)
+        # print((180/np.pi)*xs[i][:3], x_des)
     x0 = xs[-1]
 
 
 plt.plot(tau_arr)
 plt.grid()
-plt.show()
+# plt.show()
