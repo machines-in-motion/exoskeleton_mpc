@@ -26,7 +26,8 @@ q0 = np.array([0,-np.pi/6.0,0,-np.pi/2.0,0])
 
 data_offset = []
 
-T_estimate = 10
+T_estimate = 3
+dt_estimate = 0.01
 estimate_x0 = np.zeros(rmodel.nq + rmodel.nv)
 measurement = collections.deque(maxlen=T_estimate)
 
@@ -38,7 +39,7 @@ imu_offset = [pin.utils.rpyToMatrix(np.pi/2.0, 0, 0), 0]
 calibration_time = 100
 for i in range (calibration_time):
     interface.setCommand([0], [0.], [0], [0], [0.0])
-    time.sleep(0.001)
+    time.sleep(dt_estimate)
     state = interface.getState()
 
     base = Rotation.from_quat(state["base_ori"][0]).as_matrix()
@@ -77,7 +78,7 @@ viz_estimate_thread.start()
 
 for i in range (T_estimate):
     interface.setCommand([0], [0.], [0], [0], [2.0])
-    time.sleep(0.001)
+    time.sleep(dt_estimate)
     state = interface.getState()
 
     base = Rotation.from_quat(state["base_ori"][0]).as_matrix()
@@ -100,7 +101,7 @@ for i in range(shoulder_offset_time):
     shoulder = Rotation.from_quat(state["shoulder_ori"][0]).as_matrix()
     hand = Rotation.from_quat(state["wrist_ori"][0]).as_matrix()  
     measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, 0))
-    estimate_parent.send([measurement, T_estimate, rmodel, np.zeros(rmodel.nq + rmodel.nv), 0])
+    estimate_parent.send([measurement, T_estimate, dt_estimate, rmodel, 0])
     estimate_x0 = estimate_parent.recv()
     offset_x0[0] += estimate_x0[1]
     offset_x0[1] += state["q"][0]
@@ -110,7 +111,7 @@ motor_offset_shoulder = (offset_x0[0] - offset_x0[1])/shoulder_offset_time
 
 for i in range (T_estimate):
     interface.setCommand([0], [0.], [0], [0], [2.0])
-    time.sleep(0.001)
+    time.sleep(dt_estimate)
     state = interface.getState()
     joint_angle = state['q'][0] + motor_offset_shoulder
 
@@ -121,6 +122,7 @@ for i in range (T_estimate):
 
 counter = 1
 index = 0
+index_estimate = 0
 ctrl_dt = 0.002
 replan_freq = 0.1
 knot_points = int(dt/ctrl_dt)
@@ -134,14 +136,14 @@ data_motor = []
 data_torque = []
 
 gst = time.perf_counter()
-iteration_count = int(2e4)
+iteration_count = int(1e4)
 no_torque = 0
 interface.setCommand([0], [0.], [0], [0], [0.0])
 time.sleep(0.001)
 
 # target
-x_des = np.array([0.4, -0.2, -0.0])
-
+# x_des = np.array([0.4, -0.2, -0.0])
+x_des_arr = np.array([[0.2, -.25, 0.1], [0.2, -0.25, -0.1], [0.3, 0.0, -0.1],  [0.3, -0.3, -0.2]])
 # vicon_target = ViconTarget()
 
 for i in range(iteration_count):
@@ -149,14 +151,17 @@ for i in range(iteration_count):
     state = interface.getState()
     joint_angle = state['q'][0] + motor_offset_shoulder
 
-    base = Rotation.from_quat(state["base_ori"][0]).as_matrix()
-    shoulder = Rotation.from_quat(state["shoulder_ori"][0]).as_matrix()
-    hand = Rotation.from_quat(state["wrist_ori"][0]).as_matrix()    
-    measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, joint_angle))
+    if (i % (1.0/dt_estimate) == 0):
+        base = Rotation.from_quat(state["base_ori"][0]).as_matrix()
+        shoulder = Rotation.from_quat(state["shoulder_ori"][0]).as_matrix()
+        hand = Rotation.from_quat(state["wrist_ori"][0]).as_matrix()    
+        measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, joint_angle))
 
-    if get_new_measurement:
+    x_des = x_des_arr[int(i/5000)]
+
+    if get_new_measurement and index_estimate > int(1.0/dt_estimate) :
         viz_estimate_parent.send([imu_offset[0] @ base.T @ shoulder, imu_offset[1] @ base.T @ hand, estimate_x0, x_des])
-        estimate_parent.send([measurement, T_estimate, rmodel, np.zeros(rmodel.nq + rmodel.nv), 1])
+        estimate_parent.send([measurement, T_estimate, dt_estimate, rmodel,  1])
         get_new_measurement = 0
         recieve_new_estimate = 1.0
 
@@ -164,6 +169,7 @@ for i in range(iteration_count):
         estimate_x0 = estimate_parent.recv()   
         get_new_measurement = 1.0
         recieve_new_estimate = 0.0
+        index_estimate = 0
 
     if solve_mpc and index*dt >= replan_freq:
         # x_des = vicon_target.get_taget()
@@ -200,8 +206,9 @@ for i in range(iteration_count):
     if i < 2000:
         torque_command = 0.3
     else:
-        print("semdomg cpommand")
-        torque_command = max(0.3, motor_torque)
+        # print("semdomg cpommand")
+        torque_command = min(max(0.3, motor_torque), 4.0)
+        # torque_command = 2.0
     interface.setCommand([0], [0.], [0], [0], [torque_command])
 
     data_torque.append([desired_joint_torque, torque_command])
@@ -215,6 +222,7 @@ for i in range(iteration_count):
         assert False
 
     counter += 1
+    index_estimate += 1
 
 get = time.perf_counter()
 

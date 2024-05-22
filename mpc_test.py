@@ -20,7 +20,7 @@ viz.display_frames = True
 
 T = 10
 dt = 1e-1
-x_des_arr = np.array([[0.2, -.3, 0.0], [0.2, 0.3, 0.1], [0.3, 0.3, -0.4],  [0.3, -0.3, -0.2]])
+x_des_arr = np.array([[0.2, -.25, 0.1], [0.2, -0.25, -0.1], [0.3, 0.0, -0.1],  [0.3, -0.3, -0.2]])
 x0 = np.zeros(rmodel.nq + rmodel.nv)
 x0[:rmodel.nq] = q0
 
