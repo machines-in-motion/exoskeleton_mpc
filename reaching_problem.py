@@ -208,12 +208,12 @@ def solve_reaching_problem(x_des, x0, rmodel, T, dt, xs = None, us = None):
 
     # Add costs
     runningCostModel.addCost("stateReg", xRegCost, 2e-4)
-    runningCostModel.addCost("ctrlRegGrav", uRegCost, 1e-4)
+    # runningCostModel.addCost("ctrlRegGrav", uRegCost, 2e-6)
     # runningCostModel.addCost("translation", frameTranslationCost.copy(), 1e-3)
-    # runningCostModel.addCost("acceleration", accCost, 1e-2)
+    # runningCostModel.addCost("acceleration", accCost, 5e-4)
     # runningCostModel.addCost("energy", energyCost, 1e-5)
     # terminalCostModel.addCost("stateReg", xRegCost, 5e-3)
-    terminalCostModel.addCost("translation", frameTranslationCost.copy(), 1e1*dt)
+    terminalCostModel.addCost("translation", frameTranslationCost.copy(), 3e1*dt)
     # terminalCostModel.addCost("acceleration", accCost, 5e-2)
     terminalCostModel.addCost("stateReg", xRegCost, 5e-3)
 
@@ -254,12 +254,12 @@ def solve_reaching_problem(x_des, x0, rmodel, T, dt, xs = None, us = None):
     # ddp.termination_tolerance = 1e-4
     ddp.eps_abs = 1e-4
     ddp.eps_rel = 1e-4
-    ddp.max_qp_iters = 500
+    ddp.max_qp_iters = 1000
     # Warm start : initial state + gravity compensation
     # xinit = np.zeros(rmodel.nq + rmodel.nv)
     xinit = x0
     # print(xinit)
-    if xs:
+    if xs and us:
         xs_init = xs
         us_init = us
     else:
@@ -281,5 +281,6 @@ def solve_reaching_problem_parallel(child_conn, T, dt):
         ddp = solve_reaching_problem(x_des, q0, rmodel, T, dt, xs_prev, us_prev)
         et = time.time()
         # print("ddp solve time : ", 1e3 * (et - st))
-        xs_prev, us_prev = ddp.xs, ddp.us
+        if ddp.KKT < 1e1:
+            xs_prev, us_prev = ddp.xs, ddp.us
         child_conn.send([np.array(ddp.xs), np.array(ddp.us)])

@@ -94,7 +94,7 @@ motor_offset_shoulder = 0
 print("estimating motor offset ...")
 
 for i in range(shoulder_offset_time):
-    interface.setCommand([0], [0.], [0], [0], [2.0])
+    interface.setCommand([0], [0.], [0], [0], [1.0])
     time.sleep(0.001)
     state = interface.getState()
     base = Rotation.from_quat(state["base_ori"][0]).as_matrix()
@@ -136,14 +136,14 @@ data_motor = []
 data_torque = []
 
 gst = time.perf_counter()
-iteration_count = int(1e4)
+iteration_count = int(2.0e4)
 no_torque = 0
 interface.setCommand([0], [0.], [0], [0], [0.0])
 time.sleep(0.001)
 
 # target
 # x_des = np.array([0.4, -0.2, -0.0])
-x_des_arr = np.array([[0.2, -.25, 0.1], [0.2, -0.25, -0.1], [0.3, 0.0, -0.1],  [0.3, -0.3, -0.2]])
+x_des_arr = np.array([[0.2, -.25, 0.1], [0.2, -0.25, -0.1], [0.3, 0.0, 0.1],  [0.2, 0.0, -0.2]])
 # vicon_target = ViconTarget()
 
 for i in range(iteration_count):
@@ -207,7 +207,7 @@ for i in range(iteration_count):
         torque_command = 0.3
     else:
         # print("semdomg cpommand")
-        torque_command = min(max(0.3, motor_torque), 4.0)
+        torque_command = min(max(0.3, motor_torque), 5.0)
         # torque_command = 2.0
     interface.setCommand([0], [0.], [0], [0], [torque_command])
 
