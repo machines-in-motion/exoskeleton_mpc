@@ -46,7 +46,7 @@ def update_frame(name, vis, R, offset = np.zeros(3)):
 
 
 def visualize_estimate(child, viz):
-    viewer = meshcat.Visualizer(zmq_url = "tcp://127.0.0.1:6014")
+    viewer = meshcat.Visualizer(zmq_url = "tcp://127.0.0.1:6000")
     viz.initViewer(viewer)
     viz.loadViewerModel()
     viz.initializeFrames()
@@ -64,7 +64,7 @@ def visualize_estimate(child, viz):
 
 
 def visualize_solution(viz, child):
-    viewer = meshcat.Visualizer(zmq_url = "tcp://127.0.0.1:6014")
+    viewer = meshcat.Visualizer(zmq_url = "tcp://127.0.0.1:6000")
     viz.initViewer(viewer)
     viz.loadViewerModel()
     viz.initializeFrames()

@@ -113,5 +113,9 @@ def solve_estimation_parallel(child_conn):
         et = time.time()
         # print("ddp solve time : ", 1e3 * (et - st))
         xs_prev = xs.copy()
-        # print(np.array(xs[-1][5:]))
-        child_conn.send(np.array(xs[-1]))
+        estimate = np.array(xs[-1])
+        estimate[:rmodel.nq] = estimate[:rmodel.nq]%(2*np.pi)
+        for i in range(rmodel.nq):
+            if estimate[i] > np.pi:
+                estimate[i] -= 2*np.pi
+        child_conn.send(estimate)

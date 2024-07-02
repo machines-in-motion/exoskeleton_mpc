@@ -143,7 +143,7 @@ time.sleep(0.001)
 
 # target
 # x_des = np.array([0.4, -0.2, -0.0])
-x_des_arr = np.array([[0.2, -.25, 0.1], [0.2, -0.25, -0.1], [0.3, 0.0, 0.1],  [0.2, 0.0, -0.2]])
+x_des_arr = np.array([[0.2, -.25, 0.2], [0.2, -0.25, -0.1], [0.3, 0.0, 0.1],  [0.1, -0.25, -0.1]])
 # vicon_target = ViconTarget()
 
 for i in range(iteration_count):
@@ -207,8 +207,9 @@ for i in range(iteration_count):
         torque_command = 0.3
     else:
         # print("semdomg cpommand")
-        torque_command = min(max(0.3, motor_torque), 5.0)
-        # torque_command = 2.0
+        torque_command = min(max(0.3, motor_torque), 6.0)
+
+        # torque_command = 0.0
     interface.setCommand([0], [0.], [0], [0], [torque_command])
 
     data_torque.append([desired_joint_torque, torque_command])
