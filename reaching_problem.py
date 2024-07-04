@@ -233,7 +233,7 @@ def solve_reaching_problem(x_des, x0, rmodel, T, dt, xs = None, us = None):
     # ddp.termination_tolerance = 1e-4
     ddp.eps_abs = 1e-4
     ddp.eps_rel = 1e-4
-    ddp.max_qp_iters = 500
+    ddp.max_qp_iters = 100
     # Warm start : initial state + gravity compensation
     # xinit = np.zeros(rmodel.nq + rmodel.nv)
     xinit = x0
@@ -247,10 +247,10 @@ def solve_reaching_problem(x_des, x0, rmodel, T, dt, xs = None, us = None):
         us_init = [np.zeros(rmodel.nq) for i in range(T)]
     
     # Solve
-    ddp.solve(xs_init, us_init, maxiter=15)
+    ddp.solve(xs_init, us_init, maxiter=10)
     if ddp.KKT > 1e1:
         print("KKT Norm high ...")
-        print(q0, v0)
+    #     print(q0, v0)
         # ddp.with_callbacks = True
         # ddp.solve(xs_init, us_init, maxiter=35)
 

@@ -59,9 +59,9 @@ estimation_thread.start()
 
 # mpc threading setup
 solve_mpc = 1.0
-recieve_new_measurement = 0.0
-T_mpc = 10
-dt = 0.1   
+recieve_new_plan = 0.0
+T_mpc = 5
+dt = 0.05   
 mpc_parent, mpc_child = Pipe()
 mpc_thread = Process(target = solve_reaching_problem_parallel, args = (mpc_child, T_mpc, dt))
 mpc_thread.start()
@@ -123,11 +123,13 @@ for i in range (T_estimate):
 counter = 1
 index = 0
 index_estimate = 0
+index_mpc = 0
 ctrl_dt = 0.002
-replan_freq = 0.1
+replan_freq = 0.01
 knot_points = int(dt/ctrl_dt)
 us = np.zeros((T_mpc, rmodel.nv))
 buffer = 0.04/1e3
+ratio = int(ctrl_dt/0.001)
 
 # statistics data 
 effecto_estimate = []
@@ -143,15 +145,17 @@ time.sleep(0.001)
 
 # target
 # x_des = np.array([0.4, -0.2, -0.0])
-x_des_arr = np.array([[0.2, -.25, 0.2], [0.2, -0.25, -0.1], [0.3, 0.0, 0.1],  [0.1, -0.25, -0.1]])
+x_des_arr = np.array([[0.2, -.15, 0.2], [0.3, -0.15, -0.1], [0.3, 0.0, 0.1],  [0.3, -0.15, -0.1]])
 # vicon_target = ViconTarget()
 
 for i in range(iteration_count):
+
+    current_time = ratio * i # time in milliseconds
     st = time.perf_counter()
     state = interface.getState()
     joint_angle = state['q'][0] + motor_offset_shoulder
 
-    if (i % (1.0/dt_estimate) == 0):
+    if ((current_time) % (1.0/dt_estimate) == 0):
         base = Rotation.from_quat(state["base_ori"][0]).as_matrix()
         shoulder = Rotation.from_quat(state["shoulder_ori"][0]).as_matrix()
         hand = Rotation.from_quat(state["wrist_ori"][0]).as_matrix()    
@@ -159,40 +163,49 @@ for i in range(iteration_count):
 
     x_des = x_des_arr[int(i/5000)]
 
-    if get_new_measurement and index_estimate > int(1.0/dt_estimate) :
+    if (index_estimate > int(1.0/dt_estimate)):
+        print("Warning : Estimation solve time exceeding alloted time ...")
+    if get_new_measurement and index_estimate >= int(1.0/dt_estimate) :
         viz_estimate_parent.send([imu_offset[0] @ base.T @ shoulder, imu_offset[1] @ base.T @ hand, estimate_x0, x_des])
         estimate_parent.send([measurement, T_estimate, dt_estimate, rmodel,  1])
         get_new_measurement = 0
         recieve_new_estimate = 1.0
+        index_estimate = 0
 
     if estimate_parent.poll() and recieve_new_estimate:
         estimate_x0 = estimate_parent.recv()   
         get_new_measurement = 1.0
         recieve_new_estimate = 0.0
-        index_estimate = 0
 
-    if solve_mpc and index*dt >= replan_freq:
+    pin.framesForwardKinematics(rmodel, rdata, estimate_x0[:rmodel.nq])
+    pin.updateFramePlacements(rmodel, rdata)
+    hand_location = np.array(rdata.oMf[rmodel.getFrameId("Hand")].translation)
+    if(index_mpc > (replan_freq/0.001)):
+        print("Warning : MPC Solve time larger than replan frequency ...")
+    if solve_mpc and index_mpc >= (replan_freq/0.001):
         # x_des = vicon_target.get_taget()
+        # if np.linalg.norm(hand_location - x_des) > 0.05:
+        #     x_des = 0.5*(hand_location + x_des)
         mpc_parent.send([x_des.copy(), estimate_x0.copy(), rmodel])
         solve_mpc = 0
-        recieve_new_measurement = 1.0
+        recieve_new_plan = 1.0
+        index_mpc = 0
 
-    if mpc_parent.poll() and recieve_new_measurement:
+    if mpc_parent.poll() and recieve_new_plan:
         xs, us = mpc_parent.recv()         
         solve_mpc = 1.0
-        recieve_new_measurement = 0.0
+        recieve_new_plan = 0.0
         # viz_parent.send(xs)
         index = 0
 
     if (counter) % knot_points == 0:
         counter = 1
-        index += 1
+        index += 1 
     if counter == 1:
         torque_command_arr = np.linspace(us[index][1], us[index+1][1], endpoint = True, num = int(knot_points))
     # print(joint_angle, estimate_x0[1])
-    # print(counter, knot_points, index, replan_freq, recieve_new_measurement, solve_mpc)
-    pin.framesForwardKinematics(rmodel, rdata, estimate_x0[:rmodel.nq])
-    pin.updateFramePlacements(rmodel, rdata)
+    # print(counter, knot_points, index, replan_freq, recieve_new_plan, solve_mpc)
+    
     data_estimate.append(estimate_x0[1])
     data_motor.append(joint_angle)
     effecto_estimate.append(np.array(rdata.oMf[rmodel.getFrameId("Hand")].translation).copy())
@@ -223,7 +236,8 @@ for i in range(iteration_count):
         assert False
 
     counter += 1
-    index_estimate += 1
+    index_estimate += ratio # time elapsed after new estimate is obtained (milliseconds)
+    index_mpc += ratio # time elapsed after new plan is computed (milliseconds)
 
 get = time.perf_counter()
 
