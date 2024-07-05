@@ -13,6 +13,7 @@ from multiprocessing import Pipe, Process
 import threading
 
 from interface import ExoSkeletonUDPInterface
+from keyboard_press import keyboard_event
 
 interface = ExoSkeletonUDPInterface()
 counter = 0
@@ -75,6 +76,12 @@ viz_thread.start()
 viz_estimate_parent, viz_estimate_child = Pipe()
 viz_estimate_thread = Process(target = visualize_estimate, args = (viz_estimate_child, viz))
 viz_estimate_thread.start()
+
+# starting the keyboard event
+keyboard_parent, keyboard_child = Pipe()
+
+keyboard_process = Process(target = keyboard_event, args = (keyboard_child,))
+keyboard_process.start()
 
 for i in range (T_estimate):
     interface.setCommand([0], [0.], [0], [0], [2.0])
@@ -145,8 +152,61 @@ time.sleep(0.001)
 
 # target
 # x_des = np.array([0.4, -0.2, -0.0])
-x_des_arr = np.array([[0.2, -.15, 0.2], [0.3, -0.15, -0.1], [0.3, 0.0, 0.1],  [0.3, -0.15, -0.1]])
-# vicon_target = ViconTarget()
+# x_des_arr = np.array([[0.3, -0.15, -0.1], [0.2, -.15, 0.2], [0.3, 0.0, 0.1],  [0.3, -0.15, -0.1]])
+# x_des_arr = np.array([[0.3, -0.15, -0.1], [0.3, -0.15, -0.1], [0.3, -0.15, -0.1],  [0.3, -0.15, -0.1]])
+x_des_arr = []
+
+current_time = 0
+
+while len(x_des_arr) < 3:
+    st = time.perf_counter()
+    state = interface.getState()
+    joint_angle = state['q'][0] + motor_offset_shoulder
+
+    if ((current_time) % (1.0/dt_estimate) == 0):
+        base = Rotation.from_quat(state["base_ori"][0]).as_matrix()
+        shoulder = Rotation.from_quat(state["shoulder_ori"][0]).as_matrix()
+        hand = Rotation.from_quat(state["wrist_ori"][0]).as_matrix()    
+        measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, joint_angle))
+
+    if (index_estimate > int(1.0/dt_estimate)):
+        print("Warning : Estimation solve time exceeding alloted time ...")
+    if get_new_measurement and index_estimate >= int(1.0/dt_estimate) :
+        viz_estimate_parent.send([imu_offset[0] @ base.T @ shoulder, imu_offset[1] @ base.T @ hand, estimate_x0, [0, 0, 0]])
+        estimate_parent.send([measurement, T_estimate, dt_estimate, rmodel,  1])
+        get_new_measurement = 0
+        recieve_new_estimate = 1.0
+        index_estimate = 0
+
+    if estimate_parent.poll() and recieve_new_estimate:
+        estimate_x0 = estimate_parent.recv()   
+        get_new_measurement = 1.0
+        recieve_new_estimate = 0.0
+
+    pin.framesForwardKinematics(rmodel, rdata, estimate_x0[:rmodel.nq])
+    pin.updateFramePlacements(rmodel, rdata)
+    hand_location = np.array(rdata.oMf[rmodel.getFrameId("Hand")].translation)
+    if keyboard_parent.poll():
+        flag = keyboard_parent.recv()[0]
+        print("Storing value ...")
+        x_des_arr.append(hand_location)
+
+    index_estimate += ratio # time elapsed after new estimate is obtained (milliseconds)
+    current_time += ratio # time in milliseconds
+    
+    interface.setCommand([0], [0.], [0], [0], [0.0])
+
+    et = time.perf_counter()
+    while (et - st) < ctrl_dt - buffer:
+        time.sleep(0.000001)
+        et = time.perf_counter()
+    if i * ctrl_dt - (et - gst) > 1.0:
+        print("Danger")
+        assert False
+
+
+index_estimate = 0
+current_time = 0
 
 for i in range(iteration_count):
 

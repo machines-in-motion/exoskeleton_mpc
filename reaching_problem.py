@@ -168,7 +168,7 @@ def solve_reaching_problem(x_des, x0, rmodel, T, dt, xs = None, us = None):
     activation = crocoddyl.ActivationModelWeightedQuad(np.array([1.0, 1.0, 1.0, 1.0, 1.0 ]))
     uRegCost = crocoddyl.CostModelResidual(state, activation, uResidual)
     # State regularization cost
-    activation = crocoddyl.ActivationModelWeightedQuad(np.array([0.01, 0.01, 0.01, 0.5, 0.01, 0.1, 0.1, 0.1, 0.1, 0.5 ]))
+    activation = crocoddyl.ActivationModelWeightedQuad(np.array([0.1, 0.01, 0.01, 0.01, 0.01, 0.1, 0.1, 0.1, 0.1, 0.5 ]))
     xreg = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ])
     # xreg[:rmodel.nq] = q0
     xResidual = crocoddyl.ResidualModelState(state, xreg)
@@ -185,13 +185,13 @@ def solve_reaching_problem(x_des, x0, rmodel, T, dt, xs = None, us = None):
 
     # Add costs
     runningCostModel.addCost("stateReg", xRegCost, 5e-1)
-    runningCostModel.addCost("ctrlRegGrav", uRegCost, 5e-3)
+    # runningCostModel.addCost("ctrlRegGrav", uRegCost, 5e-3)
     # runningCostModel.addCost("translation", frameTranslationCost.copy(), 1e-3)
-    runningCostModel.addCost("acceleration", accCost, 5e-4)
+    runningCostModel.addCost("acceleration", accCost, 1e-4)
     # runningCostModel.addCost("energy", energyCost, 1e-5)
-    terminalCostModel.addCost("translation", frameTranslationCost.copy(), 2e1*dt)
+    terminalCostModel.addCost("translation", frameTranslationCost.copy(), 1e2*dt)
     # terminalCostModel.addCost("acceleration", accCost, 5e-2)
-    terminalCostModel.addCost("stateReg", xRegCost, 5e-2)
+    terminalCostModel.addCost("stateReg", xRegCost, 5e-2*dt)
 
 
     #Constraints 
@@ -250,7 +250,7 @@ def solve_reaching_problem(x_des, x0, rmodel, T, dt, xs = None, us = None):
     ddp.solve(xs_init, us_init, maxiter=10)
     if ddp.KKT > 1e1:
         print("KKT Norm high ...")
-    #     print(q0, v0)
+        # print(q0, v0)
         # ddp.with_callbacks = True
         # ddp.solve(xs_init, us_init, maxiter=35)
 

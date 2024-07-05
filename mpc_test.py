@@ -7,8 +7,8 @@ import time
 import matplotlib.pyplot as plt
 
 rmodel, rdata, gmodel, cmodel = create_arm()
-# q0 = np.array([0,-np.pi/6.0,0,0.0,np.pi/8.0])
-q0 = np.array([-1.22363242, -1.67618592, -1.33166937 ,-0.69821961, -0.77246307])
+# q0 = np.array([0,-np.pi/2.0,0,0.0,0.0])
+q0 = np.array([-1.08479353, -1.05411223, -1.2764359,  -1.07157949, -0.93209138])
 v0 = np.array([ 0.01142207,  0.04466203 , 0.01347663, -0.0171165,  -0.01989773])
 # q0 = np.zeros(5)
 
@@ -24,9 +24,9 @@ for i in range(5):
     if q0[i] > np.pi:
         q0[i] -= 2*np.pi
 
-T = 10
+T = 20
 dt = 1e-1
-x_des_arr = np.array([[0.2, -.25, 0.2], [0.2, -0.25, -0.1], [0.3, 0.0, 0.1],  [0.2, 0.0, -0.2]])
+x_des_arr = np.array([[0.3, -0.15, -0.1], [0.2, -0.25, -0.1], [0.3, 0.0, 0.1],  [0.2, 0.0, -0.2]])
 x0 = np.zeros(rmodel.nq + rmodel.nv)
 x0[:rmodel.nq] = q0
 x0[rmodel.nq:] = v0
