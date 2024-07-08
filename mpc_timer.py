@@ -207,6 +207,7 @@ while len(x_des_arr) < 3:
 
 index_estimate = 0
 current_time = 0
+loc_index = -1
 
 for i in range(iteration_count):
 
@@ -220,8 +221,16 @@ for i in range(iteration_count):
         shoulder = Rotation.from_quat(state["shoulder_ori"][0]).as_matrix()
         hand = Rotation.from_quat(state["wrist_ori"][0]).as_matrix()    
         measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, joint_angle))
+    
+    if keyboard_parent.poll():
+        flag = keyboard_parent.recv()[0]
+        loc_index += 1
+        print("Changing to the next target location")
+    
+    if loc_index == len(x_des_arr):
+        break
 
-    x_des = x_des_arr[int(i/5000)]
+    x_des = x_des_arr[loc_index]
 
     if (index_estimate > int(1.0/dt_estimate)):
         print("Warning : Estimation solve time exceeding alloted time ...")
@@ -282,7 +291,8 @@ for i in range(iteration_count):
         # print("semdomg cpommand")
         torque_command = min(max(0.3, motor_torque), 6.0)
 
-        # torque_command = 0.0
+    if loc_index == -1:
+        torque_command = 0.0
     interface.setCommand([0], [0.], [0], [0], [torque_command])
 
     data_torque.append([desired_joint_torque, torque_command])
