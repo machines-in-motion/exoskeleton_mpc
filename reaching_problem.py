@@ -168,7 +168,7 @@ def solve_reaching_problem(x_des, x0, rmodel, T, dt, xs = None, us = None):
     activation = crocoddyl.ActivationModelWeightedQuad(np.array([1.0, 1.0, 1.0, 1.0, 1.0 ]))
     uRegCost = crocoddyl.CostModelResidual(state, activation, uResidual)
     # State regularization cost
-    activation = crocoddyl.ActivationModelWeightedQuad(np.array([0.1, 0.01, 0.01, 0.01, 0.01, 0.1, 0.1, 0.1, 0.1, 0.5 ]))
+    activation = crocoddyl.ActivationModelWeightedQuad(np.array([0.01, 0.01, 0.01, 0.01, 0.01, 0.1, 0.1, 0.1, 0.1, 0.5 ]))
     xreg = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ])
     # xreg[:rmodel.nq] = q0
     xResidual = crocoddyl.ResidualModelState(state, xreg)
@@ -184,12 +184,12 @@ def solve_reaching_problem(x_des, x0, rmodel, T, dt, xs = None, us = None):
     
 
     # Add costs
-    runningCostModel.addCost("stateReg", xRegCost, 5e-1)
+    runningCostModel.addCost("stateReg", xRegCost, 5e-5)
     # runningCostModel.addCost("ctrlRegGrav", uRegCost, 5e-3)
     # runningCostModel.addCost("translation", frameTranslationCost.copy(), 1e-3)
     runningCostModel.addCost("acceleration", accCost, 1e-4)
     # runningCostModel.addCost("energy", energyCost, 1e-5)
-    terminalCostModel.addCost("translation", frameTranslationCost.copy(), 1e2*dt)
+    terminalCostModel.addCost("translation", frameTranslationCost.copy(), 5e0*dt)
     # terminalCostModel.addCost("acceleration", accCost, 5e-2)
     terminalCostModel.addCost("stateReg", xRegCost, 5e-2*dt)
 
@@ -199,8 +199,8 @@ def solve_reaching_problem(x_des, x0, rmodel, T, dt, xs = None, us = None):
     ee_contraint = crocoddyl.ConstraintModelResidual(
     state,
     xResidual,
-    np.array([-np.pi/2.0,-1000, -np.pi/2.0 , -np.pi/2.0, -np.pi/2.0,  -1.2, -1.2, -1.2, -1.2, -1.2]),
-    np.array([0.1,1000, np.pi/2.0,  np.pi/2.0, np.pi,       1.2, 1.2, 1.2, 1.2, 1.2]),
+    np.array([-np.pi/2.0,-1000, -np.pi/2.0 ,    0.0, -np.pi/2.0,  -1.2, -1.2, -1.2, -1.2, -1.2]),
+    np.array([0.1,        1000,   np.pi/2.0,  np.pi,     np.pi/2.0,       1.2, 1.2, 1.2, 1.2, 1.2]),
 )
     constraints.addConstraint("ee_bound", ee_contraint)
 

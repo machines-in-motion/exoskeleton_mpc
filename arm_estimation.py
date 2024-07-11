@@ -33,6 +33,7 @@ dt_estimate = 0.01
 
 viz = Visualizer(rmodel, gmodel, cmodel)
 viewer = meshcat.Visualizer(zmq_url = "tcp://127.0.0.1:6000")
+
 viz.initViewer(viewer)
 viz.loadViewerModel()
 viz.initializeFrames()
@@ -99,15 +100,41 @@ for i in range (T_estimate):
     hand = Rotation.from_quat(state["wrist_ori"][0]).as_matrix()    
     measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, joint_angle))
 
+
+add_frame("hand", viz.viewer)
+add_frame("shoulder", viz.viewer)
+
+
+counter = 1
+index = 0
+index_estimate = 0
+index_mpc = 0
+ctrl_dt = 0.002
+replan_freq = 0.01
+buffer = 0.04/1e3
+ratio = int(ctrl_dt/0.001)
+current_time = 0
+
 while True:
     interface.setCommand([0], [0.], [0], [0], [1.0])
-    time.sleep(0.001)
+    # time.sleep(0.001)
     state = interface.getState()
+
+    # if ((current_time) % (1.0/dt_estimate) == 0):
+    base = Rotation.from_quat(state["base_ori"][0]).as_matrix()
+    shoulder = Rotation.from_quat(state["shoulder_ori"][0]).as_matrix()
+    hand = Rotation.from_quat(state["wrist_ori"][0]).as_matrix()    
+
+    update_frame("shoulder", viz.viewer,   imu_offset[0] @ base.T @ shoulder)
+    update_frame('hand', viz.viewer,imu_offset[1] @ base.T @ hand, [0.5, 0, 0])
+
     measurement.append(ArmMeasurementCurrent(imu_offset[0] @ base.T @ shoulder,imu_offset[1] @ base.T @ hand, joint_angle))
-    estimate = solve_estimation_problem(measurement, T_estimate, dt_estimate, rmodel, 1)
+    estimate = solve_estimation_problem(measurement, T_estimate, dt_estimate, rmodel, 0)
     viz.display(estimate.xs[-1][:rmodel.nq])
     estimate_x0 = estimate.xs[-1]
-    print(estimate_x0[1]- state["q"], state["motor_q"])
-    # time.sleep(0.01)
+    # print(estimate_x0)
+    # print(estimate_x0[1]- state["q"], state["motor_q"])
+
     counter += 1
+    current_time += ratio # time in milliseconds
 

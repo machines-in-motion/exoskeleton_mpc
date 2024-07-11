@@ -19,7 +19,6 @@ interface = ExoSkeletonUDPInterface()
 counter = 0
 interface.calibrate()
 
-offset = [0,0,0,1, 0]
 
 rmodel, rdata, gmodel, cmodel = create_arm()
 
@@ -145,15 +144,12 @@ data_motor = []
 data_torque = []
 
 gst = time.perf_counter()
-iteration_count = int(2.0e4)
+iteration_count = int(12.0e4)
 no_torque = 0
 interface.setCommand([0], [0.], [0], [0], [0.0])
 time.sleep(0.001)
 
 # target
-# x_des = np.array([0.4, -0.2, -0.0])
-# x_des_arr = np.array([[0.3, -0.15, -0.1], [0.2, -.15, 0.2], [0.3, 0.0, 0.1],  [0.3, -0.15, -0.1]])
-# x_des_arr = np.array([[0.3, -0.15, -0.1], [0.3, -0.15, -0.1], [0.3, -0.15, -0.1],  [0.3, -0.15, -0.1]])
 x_des_arr = []
 
 current_time = 0
@@ -242,7 +238,7 @@ for i in range(iteration_count):
         index_estimate = 0
 
     if estimate_parent.poll() and recieve_new_estimate:
-        estimate_x0 = estimate_parent.recv()   
+        estimate_x0 = estimate_parent.recv()  
         get_new_measurement = 1.0
         recieve_new_estimate = 0.0
 
@@ -284,15 +280,12 @@ for i in range(iteration_count):
     #TODO: jacobian should me moved to the firmware
     motor_torque_grav = (2*0.16600942* state["motor_q"][0] - 0.73458596)*tau_grav
     motor_torque = (2*0.16600942* state["motor_q"][0] - 0.73458596)*desired_joint_torque
-
-    if i < 2000:
-        torque_command = 0.3
-    else:
-        # print("semdomg cpommand")
-        torque_command = min(max(0.3, motor_torque), 6.0)
-
+    # print("semdomg cpommand")
+    torque_command = min(max(0.3, motor_torque), 7.0)
     if loc_index == -1:
         torque_command = 0.0
+        print("comand is zero")
+    # print(motor_torque, torque_command)
     interface.setCommand([0], [0.], [0], [0], [torque_command])
 
     data_torque.append([desired_joint_torque, torque_command])
@@ -343,6 +336,6 @@ ax[2].plot(time_scale, len(effecto_estimate)*[x_des[2]], label = "target")
 # plt.plot(data_torque)
 plt.grid()
 plt.legend()
-plt.show()
+# plt.show()
 
 # control_loop(1,1, estimate_x0, counter, index)
