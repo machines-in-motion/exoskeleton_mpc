@@ -4,7 +4,7 @@ import pinocchio as pin
 from dataclasses import dataclass
 from scipy.spatial.transform import Rotation
 import time 
-from vicon_sdk_cpp import ViconClient, ViconFrame
+# from vicon_sdk_cpp import ViconClient, ViconFrame
 
 # This class takes the current imu orienation and computes the arm and shoulder orinetation in the world frame
 @dataclass
@@ -79,26 +79,26 @@ def visualize_solution(viz, child):
 
 
 
-class ViconTarget:
-    def __init__(self):
-        # Connect to the server using a ViconClient.
-        self.client = ViconClient()
-        self.client.initialize("172.24.117.119:801")
-        self.client.run()
+# class ViconTarget:
+#     def __init__(self):
+#         # Connect to the server using a ViconClient.
+#         self.client = ViconClient()
+#         self.client.initialize("172.24.117.119:801")
+#         self.client.run()
 
-        # Create a frame to hold the received data.
-        self.base_frame = ViconFrame()
-        self.target_frame = ViconFrame()
-        self.target = np.zeros(3)
+#         # Create a frame to hold the received data.
+#         self.base_frame = ViconFrame()
+#         self.target_frame = ViconFrame()
+#         self.target = np.zeros(3)
 
-    def get_taget(self):
-        try:
-            self.client.get_vicon_frame("exoskeleton_base/exoskeleton_base", self.base_frame)
-            self.client.get_vicon_frame("Cube/Cube", self.target_frame)
-            vicon_T_shoulder = pin.SE3(Rotation.from_quat(self.base_frame.se3_pose[3:]).as_matrix(), self.base_frame.se3_pose[:3])
-            vicon_T_cube = pin.SE3(Rotation.from_quat(self.target_frame.se3_pose[3:]).as_matrix(), self.target_frame.se3_pose[:3])
-            self.target = (vicon_T_shoulder.inverse() * vicon_T_cube).translation
-        except:
-            print("oops")
+#     def get_taget(self):
+#         try:
+#             self.client.get_vicon_frame("exoskeleton_base/exoskeleton_base", self.base_frame)
+#             self.client.get_vicon_frame("Cube/Cube", self.target_frame)
+#             vicon_T_shoulder = pin.SE3(Rotation.from_quat(self.base_frame.se3_pose[3:]).as_matrix(), self.base_frame.se3_pose[:3])
+#             vicon_T_cube = pin.SE3(Rotation.from_quat(self.target_frame.se3_pose[3:]).as_matrix(), self.target_frame.se3_pose[:3])
+#             self.target = (vicon_T_shoulder.inverse() * vicon_T_cube).translation
+#         except:
+#             print("oops")
     
-        return self.target
+#         return self.target

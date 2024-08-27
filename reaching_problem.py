@@ -28,7 +28,7 @@ class DifferentialKinematicModel(crocoddyl.DifferentialActionModelAbstract):
 
     def calc(self, data, x, u=None):
         if u is None:
-            u = self.unone
+            u = np.zeros(5)
         q, v = x[: self.state.nq], x[-self.state.nv :]
 
         pin.computeAllTerms(self.state.pinocchio, data.pinocchio, q, v)
@@ -47,7 +47,7 @@ class DifferentialKinematicModel(crocoddyl.DifferentialActionModelAbstract):
     def calcDiff(self, data, x, u=None):
         q, v = x[: self.state.nq], x[-self.state.nv :]
         if u is None:
-            u = self.unone
+            u = np.zeros(5)
         if True:
             self.calc(data, x, u)
         # Computing the dynamics derivatives
@@ -189,7 +189,7 @@ def solve_reaching_problem(x_des, x0, rmodel, T, dt, xs = None, us = None):
     # runningCostModel.addCost("translation", frameTranslationCost.copy(), 1e-3)
     runningCostModel.addCost("acceleration", accCost, 1e-4)
     # runningCostModel.addCost("energy", energyCost, 1e-5)
-    terminalCostModel.addCost("translation", frameTranslationCost.copy(), 5e0*dt)
+    terminalCostModel.addCost("translation", frameTranslationCost.copy(), 1e2*dt)
     # terminalCostModel.addCost("acceleration", accCost, 5e-2)
     terminalCostModel.addCost("stateReg", xRegCost, 5e-2*dt)
 
