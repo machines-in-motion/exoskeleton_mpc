@@ -68,9 +68,9 @@ mpc_thread.start()
 
 # visualization threading setup
 viz = Visualizer(rmodel, gmodel, cmodel)
-viz_parent, viz_child = Pipe()
-viz_thread = Process(target = visualize_solution, args = (viz, viz_child,))
-viz_thread.start()
+# viz_parent, viz_child = Pipe()
+# viz_thread = Process(target = visualize_solution, args = (viz, viz_child,))
+# viz_thread.start()
 
 viz_estimate_parent, viz_estimate_child = Pipe()
 viz_estimate_thread = Process(target = visualize_estimate, args = (viz_estimate_child, viz))

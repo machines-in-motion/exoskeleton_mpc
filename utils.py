@@ -44,31 +44,43 @@ def update_frame(name, vis, R, offset = np.zeros(3)):
 
 
 
+FRAME_AXIS_POSITIONS = np.array([
+    [0, 0, 0], [1, 0, 0],
+    [0, 0, 0], [0, 1, 0],
+    [0, 0, 0], [0, 0, 1]]).astype(np.float32).T
+FRAME_AXIS_COLORS = np.array([
+    [1, 0, 0], [1, 0.6, 0],
+    [0, 1, 0], [0.6, 1, 0],
+    [0, 0, 1], [0, 0.6, 1]]).astype(np.float32).T
+
+import meshcat.geometry as mg
 
 def visualize_estimate(child, viz):
     viewer = meshcat.Visualizer(zmq_url = "tcp://127.0.0.1:6000")
     viz.initViewer(viewer)
+    viz.setBackgroundColor("gray")
     viz.loadViewerModel()
-    viz.initializeFrames()
-    viz.display_frames = True
-    add_frame("hand", viz.viewer)
-    add_frame("shoulder", viz.viewer)
-    add_frame("target", viz.viewer)
+    viz.displayFrames(True, axis_length=0.2)
+
+
+    # add_frame("hand", viz.viewer)
+    # add_frame("shoulder", viz.viewer)
+    # add_frame("target", viz.viewer)
     while True:
         shoulder, hand, estimate, target = child.recv()
-        update_frame("shoulder", viz.viewer,   shoulder)
-        update_frame('hand', viz.viewer, hand, [0.5, 0, 0])
-        update_frame("target", viz.viewer, np.eye(3), target)
+        # update_frame("shoulder", viz.viewer,   shoulder)
+        # update_frame('hand', viz.viewer, hand, [0.5, 0, 0])
+        # update_frame("target", viz.viewer, np.eye(3), target)
         viz.display(estimate[:5])
         
 
 
 def visualize_solution(viz, child):
     viewer = meshcat.Visualizer(zmq_url = "tcp://127.0.0.1:6000")
-    viz.initViewer(viewer)
-    viz.loadViewerModel()
-    viz.initializeFrames()
-    viz.display_frames = True
+    # viz.initViewer("True")
+    # viz.loadViewerModel()
+    # viz.initializeFrames()
+    # viz.display_frames = True
     # add_frame("hand", viz.viewer)
     # add_frame("shoulder", viz.viewer)
     while True:
